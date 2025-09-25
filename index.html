@@ -38,6 +38,12 @@
             .falling-box { font-size: 1.5em; padding: 5px; } /* This font-size will no longer apply to text */
             #final-message { font-size: 2.5em; }
             .celebration-image-wrapper { max-width: 300px; }
+            #mute-btn {
+                font-size: 0.8em;
+                padding: 8px 12px;
+                right: 10px;
+                top: 10px;
+            }
         }
 
         .game-container {
@@ -142,25 +148,6 @@
         .falling-box {
             position: absolute;
             cursor: pointer;
-            
-            
-            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3), 3px 3px 8px rgba(0, 0, 0, 0.7);
-            z-index: 5;
-            box-sizing: border-box;
-            
-            /* New properties for image segments */
-            
-           
-            
-            /* Initial state for burst */
-            transform: translate(var(--initial-x, 0), var(--initial-y, 0)) rotate(var(--initial-rotate, 0deg)) scale(var(--initial-scale, 1));
-            opacity: var(--initial-opacity, 0);
-            transition: transform 0.8s ease-out, opacity 0.8s ease-out; /* Animation to grid */
-        }
-
-           .falling-box {
-            position: absolute;
-            cursor: pointer;
             z-index: 5;
             box-sizing: border-box;
             
@@ -178,20 +165,15 @@
             opacity: var(--initial-opacity, 0);
             /* Removed transition here - it's handled by .in-place for entry, and .popped for exit */
         }
-        /* Remove or adjust .falling-box:hover if you want a different effect for emojis */
-        .falling-box:hover {
-            transform: translateY(-3px) scale(1.02); /* Slight hover effect */
-            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.5), 5px 5px 12px rgba(0, 0, 0, 0.9);
+
+        .falling-box span {
+            pointer-events: none; /* Allow clicks to pass through the emoji span to the parent div */
         }
 
-               .falling-box.in-place {
+        .falling-box.in-place {
             transform: translate(0, 0) rotate(0deg) scale(1);
             opacity: 1;
             transition: transform 0.8s ease-out, opacity 0.8s ease-out; /* Add transition for entry */
-        }
-
-                .falling-box span {
-            pointer-events: none; /* Allow clicks to pass through the emoji span to the parent div */
         }
 
         .falling-box:hover {
@@ -325,6 +307,40 @@
             0% { transform: translate(var(--x), var(--y)) scale(1); opacity: 1; }
             100% { transform: translate(var(--x-end), var(--y-end)) rotateZ(var(--rotate-end)) scale(0.5); opacity: 0; }
         }
+
+        /* Mute Button Styles */
+        #mute-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            z-index: 100;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+        #mute-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+        #mute-btn.muted {
+            background-color: #ff007f; /* Reddish when muted */
+            border-color: #ff007f;
+        }
+        #mute-btn .icon-volume-up,
+        #mute-btn .icon-volume-off {
+            display: inline-block;
+            line-height: 1; /* For better icon centering */
+        }
     </style>
 </head>
 <body>
@@ -348,245 +364,288 @@
             </div>
         </div>
     </div>
-    <!-- Pop sound effect -->
-    <audio id="pop-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-fast-pop-censor-2195.mp3" preload="auto"></audio> 
+    
+    <!-- Audio Elements -->
+   <!-- Background music plays throughout -->
+<audio id="background-music" loop>
+    <source src="background-music.mp3" type="audio/mp3">
+</audio>
+
+<!-- Pop sound for each box -->
+<audio id="pop-sound">
+    <source src="burst.mp3" type="audio/mp3">
+</audio>
+
+<!-- Celebration sound at the end -->
+<audio id="celebration-sound">
+    <source src="celebration.mp3" type="audio/mp3">
+</audio>
+
+
+
+    <!-- Mute/Unmute Button -->
+    <button id="mute-btn" title="Toggle Music">
+        <span class="icon-volume-up">🔊</span>
+        <span class="icon-volume-off" style="display: none;">🔇</span>
+    </button>
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const imageUpload = document.getElementById('image-upload');
-            const kidNameInput = document.getElementById('kid-name');
-            const dynamicBoxContainer = document.getElementById('dynamic-box-container');
-            const gameBoardWrapper = document.querySelector('.game-board-wrapper');
-            const popSound = document.getElementById('pop-sound');
-            const overlayMessage = document.getElementById('overlay-message');
-            const finalMessage = document.getElementById('final-message');
-            const finalImage = document.getElementById('final-image');
-            const playAgainBtn = document.getElementById('play-again-btn');
-            const uploadArea = document.querySelector('.upload-area');
-            const mainTitle = document.querySelector('h1');
-            
-                        // ... (previous code) ...
+document.addEventListener('DOMContentLoaded', () => {
+    const imageUpload = document.getElementById('image-upload');
+    const kidNameInput = document.getElementById('kid-name');
+    const dynamicBoxContainer = document.getElementById('dynamic-box-container');
+    const gameBoardWrapper = document.querySelector('.game-board-wrapper');
+    const overlayMessage = document.getElementById('overlay-message');
+    const finalMessage = document.getElementById('final-message');
+    const finalImage = document.getElementById('final-image');
+    const playAgainBtn = document.getElementById('play-again-btn');
+    const uploadArea = document.querySelector('.upload-area');
+    const mainTitle = document.querySelector('h1');
+    const muteBtn = document.getElementById('mute-btn');
+    const volumeUpIcon = muteBtn.querySelector('.icon-volume-up');
+    const volumeOffIcon = muteBtn.querySelector('.icon-volume-off');
 
-            let boxesPopped = 0;
-            let totalBoxes = 0;
-            const celebrationColors = ['#ff00ff', '#00ff7f', '#ffcc00', '#00bfff', '#ff5733'];
-            const animalEmojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐒', '🦋', '🐢', '🐍', '🐠', '🐙', '🦀', '🐳', '🐬', '🐧', '🦅', '🦉', '🦆', '🦢', '🕊️', '🐎', '🦓', '🦒', '🐘', '🦏', '🦛', '🐪', '🐆', '🐅', '🦍', '🦧', '🦝', '🦡', '🦦', '🐾'];
+    // Audio elements
+    // Audio elements
+const backgroundMusic = document.getElementById('background-music');
+const popSound = document.getElementById('pop-sound');
+const celebrationSound = document.getElementById('celebration-sound');
 
-            const rows = 6;
-            const cols = 6;
+// Reduce background music volume
+backgroundMusic.volume = 0.3; // adjust as needed
 
-            function createFallingBoxes() {
-                dynamicBoxContainer.innerHTML = '';
-                boxesPopped = 0;
-                totalBoxes = rows * cols;
-                
-                const imageUrl = gameBoardWrapper.style.backgroundImage.slice(4, -1).replace(/"/g, "");
 
-                const tempImg = new Image();
-                tempImg.onload = () => {
-                    const originalImageWidth = tempImg.naturalWidth;
-                    const originalImageHeight = tempImg.naturalHeight;
+    let audioUnlocked = false;
+    let boxesPopped = 0;
+    let totalBoxes = 0;
+    const celebrationColors = ['#ff00ff', '#00ff7f', '#ffcc00', '#00bfff', '#ff5733'];
+    const animalEmojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐒','🦋','🐢','🐍','🐠','🐙','🦀','🐳','🐬','🐧','🦅','🦉','🦆','🦢','🕊️','🐎','🦓','🦒','🐘','🦏','🦛','🐪','🐆','🐅','🦍','🦧','🦝','🦡','🦦','🐾'];
 
-                    const wrapperDimension = Math.min(gameBoardWrapper.offsetWidth, gameBoardWrapper.offsetHeight);
-                    
-                    const aspectRatioImage = originalImageWidth / originalImageHeight;
-                    const aspectRatioWrapper = wrapperDimension / wrapperDimension; 
+    const rows = 6;
+    const cols = 6;
+    let isMuted = false;
 
-                    let bgSizeX, bgSizeY;
+    // Unlock audio on first click (required by some browsers)
+    function unlockAudio() {
+        if (!audioUnlocked) {
+            [backgroundMusic, popSound, celebrationSound].forEach(sound => {
+                sound.play().catch(()=>{});
+                sound.pause();
+                sound.currentTime = 0;
+            });
+            audioUnlocked = true;
+            document.removeEventListener('click', unlockAudio);
+        }
+    }
+    document.addEventListener('click', unlockAudio, { once: true });
 
-                    if (aspectRatioImage > aspectRatioWrapper) { 
-                        bgSizeY = '100%';
-                        bgSizeX = `${(originalImageWidth / originalImageHeight) * 100}%`;
-                    } else { 
-                        bgSizeX = '100%';
-                        bgSizeY = `${(originalImageHeight / originalImageWidth) * 100}%`;
-                    }
+    // Play audio respecting mute
+    function playAudio(audioElement) {
+        if (!isMuted) {
+            audioElement.currentTime = 0;
+            audioElement.play().catch(e => console.warn("Audio play failed:", e));
+        }
+    }
 
-                    // Store box elements to animate them after creation
-                    const boxes = [];
+    function stopAudio(audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+    }
 
-                    for (let i = 0; i < totalBoxes; i++) {
-                        const row = Math.floor(i / cols);
-                        const col = i % cols;
+    // Mute/unmute
+    muteBtn.addEventListener('click', () => {
+        isMuted = !isMuted;
+        if (isMuted) {
+            backgroundMusic.pause();
+            celebrationSound.pause();
+            popSound.muted = true;
+            muteBtn.classList.add('muted');
+            volumeUpIcon.style.display = 'none';
+            volumeOffIcon.style.display = 'inline-block';
+        } else {
+            if (gameBoardWrapper.style.display === 'block' && boxesPopped < totalBoxes) {
+                backgroundMusic.play();
+            }
+            popSound.muted = false;
+            muteBtn.classList.remove('muted');
+            volumeUpIcon.style.display = 'inline-block';
+            volumeOffIcon.style.display = 'none';
+        }
+    });
 
-                        const boxWidthPercent = 100 / cols;
-                        const boxHeightPercent = 100 / rows;
+    // Create boxes
+    function createFallingBoxes() {
+        dynamicBoxContainer.innerHTML = '';
+        boxesPopped = 0;
+        totalBoxes = rows * cols;
 
-                        const box = document.createElement('div');
-                        box.classList.add('falling-box');
-                        
-                        // Add a random emoji to the box
-                        const randomEmoji = animalEmojis[Math.floor(Math.random() * animalEmojis.length)];
-                        box.innerHTML = `<span style="font-size: 2em; line-height: 1; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">${randomEmoji}</span>`; // Centered emoji
+        const imageUrl = gameBoardWrapper.style.backgroundImage.slice(4, -1).replace(/"/g, "");
+        const tempImg = new Image();
+        tempImg.onload = () => {
+            const boxes = [];
+            for (let i = 0; i < totalBoxes; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                const boxWidthPercent = 100 / cols;
+                const boxHeightPercent = 100 / rows;
 
-                        // Removed background-image, background-position, background-size for emoji approach
-                        // If you still want the image to be visible *through* the emojis, you'd need to adjust
-                        // the falling-box styles to use background-image for the wrapper and make emojis transparent
-                        // For now, emojis will cover the image.
+                const box = document.createElement('div');
+                box.classList.add('falling-box');
+                const randomEmoji = animalEmojis[Math.floor(Math.random()*animalEmojis.length)];
+                box.innerHTML = `<span style="font-size:2em;display:flex;justify-content:center;align-items:center;width:100%;height:100%;">${randomEmoji}</span>`;
 
-                        box.style.left = `${col * boxWidthPercent}%`;
-                        box.style.top = `${row * boxHeightPercent}%`;
-                        box.style.width = `${boxWidthPercent}%`;
-                        box.style.height = `${boxHeightPercent}%`;
+                box.style.left = `${col * boxWidthPercent}%`;
+                box.style.top = `${row * boxHeightPercent}%`;
+                box.style.width = `${boxWidthPercent}%`;
+                box.style.height = `${boxHeightPercent}%`;
 
-                        // Set initial scattered properties using CSS variables
-                        const burstSpread = 150; // How far boxes are initially scattered (in px)
-                        const initialTranslateX = (Math.random() - 0.5) * burstSpread;
-                        const initialTranslateY = (Math.random() - 0.5) * burstSpread;
-                        const initialRotate = (Math.random() - 0.5) * 360; // Full rotation
-                        const initialScale = 0.5 + (Math.random() * 0.5); // Smaller to full size
-                        const initialOpacity = 0.3 + (Math.random() * 0.5); // Start semi-transparent
+                // Burst animation variables
+                const burstSpread = 150;
+                box.style.setProperty('--initial-x', `${(Math.random()-0.5)*burstSpread}px`);
+                box.style.setProperty('--initial-y', `${(Math.random()-0.5)*burstSpread}px`);
+                box.style.setProperty('--initial-rotate', `${(Math.random()-0.5)*360}deg`);
+                box.style.setProperty('--initial-scale', `${0.5 + Math.random()*0.5}`);
+                box.style.setProperty('--initial-opacity', `${0.3+Math.random()*0.5}`);
 
-                        box.style.setProperty('--initial-x', `${initialTranslateX}px`);
-                        box.style.setProperty('--initial-y', `${initialTranslateY}px`);
-                        box.style.setProperty('--initial-rotate', `${initialRotate}deg`);
-                        box.style.setProperty('--initial-scale', `${initialScale}`);
-                        box.style.setProperty('--initial-opacity', `${initialOpacity}`);
-                        
-                        dynamicBoxContainer.appendChild(box);
-                        boxes.push(box);
-                    }
+                dynamicBoxContainer.appendChild(box);
+                boxes.push(box);
+            }
 
-                    // Animate boxes into place after a short delay
-                    setTimeout(() => {
-                        boxes.forEach((box, index) => {
-                            setTimeout(() => {
-                                box.classList.add('in-place'); // Trigger transition to final position
-                            }, index * 30); // Staggered entry animation
-                        });
-                    }, 100); // Small delay before animating into place
+            setTimeout(() => {
+                boxes.forEach((box,index)=>{
+                    setTimeout(()=>box.classList.add('in-place'), index*30);
+                });
+            },100);
+        };
+        tempImg.src = imageUrl;
+    }
+
+    // Reset game
+    function resetGame() {
+        gameBoardWrapper.style.display = 'none';
+        overlayMessage.classList.remove('visible');
+        uploadArea.style.display = 'flex';
+        mainTitle.textContent = "Uncover the Birthday Surprise!";
+        playAgainBtn.style.display = 'none';
+        document.querySelectorAll('.effect-container').forEach(el=>el.remove());
+        kidNameInput.value = '';
+        imageUpload.value = '';
+        gameBoardWrapper.style.backgroundImage = 'none';
+        finalImage.src = '';
+        dynamicBoxContainer.innerHTML = '';
+
+        stopAudio(backgroundMusic);
+        stopAudio(celebrationSound);
+        if(!isMuted) backgroundMusic.play(); // restart background music for next game
+    }
+
+    // Box click -> pop + burst
+    dynamicBoxContainer.addEventListener('click', (e) => {
+        let targetBox = e.target.closest('.falling-box');
+        if (targetBox && !targetBox.classList.contains('popped')) {
+            const box = targetBox;
+            const endX = (Math.random()-0.5)*window.innerWidth*0.8;
+            const endY = window.innerHeight*1.5 + Math.random()*200;
+            const rotateEnd = (Math.random()-0.5)*1080;
+
+            box.style.setProperty('--fall-x-end', `${endX}px`);
+            box.style.setProperty('--fall-y-end', `${endY}px`);
+            box.style.setProperty('--rotate-end', `${rotateEnd}deg`);
+
+            box.classList.add('popped');
+            if(!isMuted) popSound.currentTime=0; // reset each time for overlapping pop
+            playAudio(popSound);
+
+            boxesPopped++;
+            checkGameStatus();
+        }
+    });
+
+    // Check if all boxes popped
+    function checkGameStatus() {
+        if(boxesPopped>=totalBoxes){
+            const kidName = kidNameInput.value.trim() || 'Birthday Kid';
+            finalMessage.textContent = `Happy Birthday, ${kidName}!`;
+            overlayMessage.classList.add('visible');
+            playAgainBtn.style.display='block';
+            createPartyEffects();
+
+            if(!isMuted) playAudio(celebrationSound); // Celebration music
+        }
+    }
+
+    // Party effects: confetti + balloons
+    function createPartyEffects() {
+        const effectContainer = document.createElement('div');
+        effectContainer.classList.add('effect-container');
+        document.body.appendChild(effectContainer);
+
+        for(let i=0;i<150;i++){
+            const confetti=document.createElement('div');
+            confetti.classList.add('confetti-piece');
+            confetti.style.color = celebrationColors[Math.floor(Math.random()*celebrationColors.length)];
+            confetti.style.setProperty('--x',`${Math.random()*window.innerWidth}px`);
+            confetti.style.setProperty('--y',`${-Math.random()*200}px`);
+            confetti.style.setProperty('--x-end',`${Math.random()*window.innerWidth}px`);
+            confetti.style.setProperty('--y-end',`${window.innerHeight+Math.random()*200}px`);
+            confetti.style.setProperty('--duration',`${Math.random()*2+3}s`);
+            effectContainer.appendChild(confetti);
+        }
+
+        for(let i=0;i<20;i++){
+            const balloon=document.createElement('div');
+            balloon.classList.add('balloon-piece');
+            balloon.style.color = celebrationColors[Math.floor(Math.random()*celebrationColors.length)];
+            balloon.style.left = `${Math.random()*90}%`;
+            balloon.style.bottom = `${-Math.random()*100}px`;
+            balloon.style.setProperty('--x',`${balloon.offsetLeft}px`);
+            balloon.style.setProperty('--y',`${balloon.offsetTop}px`);
+            balloon.style.setProperty('--x-end',`${balloon.offsetLeft+(Math.random()-0.5)*200}px`);
+            balloon.style.setProperty('--y-end',`${-window.innerHeight-Math.random()*300}px`);
+            balloon.style.setProperty('--duration',`${Math.random()*4+6}s`);
+            effectContainer.appendChild(balloon);
+        }
+    }
+
+    // Play again button
+    playAgainBtn.addEventListener('click', resetGame);
+
+    // Image upload
+    imageUpload.addEventListener('change',(e)=>{
+        const file=e.target.files[0];
+        if(file){
+            const reader=new FileReader();
+            reader.onload=function(e){
+                const imageUrl=e.target.result;
+                gameBoardWrapper.style.backgroundImage=`url(${imageUrl})`;
+                finalImage.src=imageUrl;
+                uploadArea.style.display='none';
+                gameBoardWrapper.style.display='block';
+                mainTitle.textContent="Piece the Puzzle Together!";
+                playAgainBtn.style.display='none';
+
+                const img=new Image();
+                img.onload=()=>{
+                    createFallingBoxes();
+                    if(!isMuted) backgroundMusic.play(); // start background music
                 };
-                tempImg.src = imageUrl; 
-            }
+                img.src=imageUrl;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
 
-          
-            
-            function resetGame() {
-                gameBoardWrapper.style.display = 'none';
-                overlayMessage.classList.remove('visible');
-                uploadArea.style.display = 'flex';
-                mainTitle.textContent = "Uncover the Birthday Surprise!";
-                playAgainBtn.style.display = 'none';
-                document.querySelectorAll('.effect-container').forEach(el => el.remove());
-                kidNameInput.value = '';
-                imageUpload.value = '';
-                gameBoardWrapper.style.backgroundImage = 'none'; 
-                finalImage.src = ''; 
-                dynamicBoxContainer.innerHTML = ''; // Clear boxes for a clean slate
-            }
+    resetGame();
 
-            dynamicBoxContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('falling-box') && !e.target.classList.contains('popped')) {
-                    const box = e.target;
-                    
-                    // The values for fall-away animation
-                    const fallDistance = window.innerHeight * 1.5; 
-                    const endX = (Math.random() - 0.5) * window.innerWidth * 0.8; // Wider spread
-                    const endY = fallDistance + Math.random() * 200;
-                    const rotateEnd = (Math.random() - 0.5) * 1080; 
-                    
-                    box.style.setProperty('--fall-x-end', `${endX}px`);
-                    box.style.setProperty('--fall-y-end', `${endY}px`);
-                    box.style.setProperty('--rotate-end', `${rotateEnd}deg`);
-                    
-                    box.classList.add('popped');
-                    popSound.currentTime = 0;
-                    popSound.play().catch(e => console.log("Audio play failed:", e)); 
-                    boxesPopped++;
-                    checkGameStatus();
-                }
-            });
+    window.addEventListener('resize', () => {
+        if(gameBoardWrapper.style.display==='block' && boxesPopped<totalBoxes){
+            createFallingBoxes();
+        }
+    });
 
-            function checkGameStatus() {
-                if (boxesPopped >= totalBoxes) {
-                    const kidName = kidNameInput.value.trim() || 'Birthday Kid';
-                    finalMessage.textContent = `Happy Birthday, ${kidName}!`;
-                    overlayMessage.classList.add('visible');
-                    playAgainBtn.style.display = 'block';
-                    createPartyEffects();
-                }
-            }
-            
-            function createPartyEffects() {
-                const effectContainer = document.createElement('div');
-                effectContainer.classList.add('effect-container');
-                document.body.appendChild(effectContainer);
+});
+</script>
 
-                for (let i = 0; i < 150; i++) {
-                    const confetti = document.createElement('div');
-                    confetti.classList.add('confetti-piece');
-                    confetti.style.color = celebrationColors[Math.floor(Math.random() * celebrationColors.length)];
-                    confetti.style.setProperty('--x', `${Math.random() * window.innerWidth}px`);
-                    confetti.style.setProperty('--y', `${-Math.random() * 200}px`);
-                    confetti.style.setProperty('--x-end', `${Math.random() * window.innerWidth}px`);
-                    confetti.style.setProperty('--y-end', `${window.innerHeight + Math.random() * 200}px`);
-                    confetti.style.setProperty('--duration', `${Math.random() * 2 + 3}s`);
-                    effectContainer.appendChild(confetti);
-                }
 
-                for (let i = 0; i < 20; i++) {
-                    const balloon = document.createElement('div');
-                    balloon.classList.add('balloon-piece');
-                    balloon.style.color = celebrationColors[Math.floor(Math.random() * celebrationColors.length)];
-                    balloon.style.left = `${Math.random() * 90}%`;
-                    balloon.style.bottom = `${-Math.random() * 100}px`;
-                    balloon.style.setProperty('--x', `${balloon.offsetLeft}px`);
-                    balloon.style.setProperty('--y', `${balloon.offsetTop}px`);
-                    balloon.style.setProperty('--x-end', `${balloon.offsetLeft + (Math.random() - 0.5) * 200}px`);
-                    balloon.style.setProperty('--y-end', `${-window.innerHeight - Math.random() * 300}px`);
-                    balloon.style.setProperty('--duration', `${Math.random() * 4 + 6}s`);
-                    effectContainer.appendChild(balloon);
-                }
-
-                for (let i = 0; i < 8; i++) { 
-                    const startX = Math.random() * window.innerWidth;
-                    const startY = window.innerHeight * 0.8 + Math.random() * window.innerHeight * 0.2; 
-                    for (let j = 0; j < 50; j++) { 
-                        const spark = document.createElement('div');
-                        spark.classList.add('firecracker-spark');
-                        spark.style.color = celebrationColors[Math.floor(Math.random() * celebrationColors.length)];
-                        spark.style.setProperty('--x', `${startX}px`);
-                        spark.style.setProperty('--y', `${startY}px`);
-                        spark.style.setProperty('--x-end', `${startX + (Math.random() - 0.5) * 400}px`); 
-                        spark.style.setProperty('--y-end', `${startY - Math.random() * 300 - 100}px`); 
-                        spark.style.setProperty('--duration', `${Math.random() * 1.5 + 1}s`);
-                        effectContainer.appendChild(spark);
-                    }
-                }
-            }
-
-            playAgainBtn.addEventListener('click', resetGame);
-
-            imageUpload.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const imageUrl = e.target.result;
-                        gameBoardWrapper.style.backgroundImage = `url(${imageUrl})`;
-                        finalImage.src = imageUrl;
-                        uploadArea.style.display = 'none';
-                        gameBoardWrapper.style.display = 'block';
-                        mainTitle.textContent = "Piece the Puzzle Together!"; // Updated title
-                        playAgainBtn.style.display = 'none';
-                        
-                        const img = new Image();
-                        img.onload = () => {
-                            createFallingBoxes(); 
-                        };
-                        img.src = imageUrl;
-                    }
-                    reader.readAsDataURL(file);
-                }
-            });
-
-            resetGame();
-            window.addEventListener('resize', () => {
-                // Only recreate boxes if the game board is currently visible (i.e., an image is loaded)
-                if (gameBoardWrapper.style.display === 'block') {
-                    createFallingBoxes(); 
-                }
-            });
-        });
-    </script>
 </body>
 </html>
