@@ -142,15 +142,15 @@
         .falling-box {
             position: absolute;
             cursor: pointer;
-            background-color: #8B4513; /* Fallback color if image fails */
-            border: 1px solid #5A2D0C;
+            
+            
             box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3), 3px 3px 8px rgba(0, 0, 0, 0.7);
             z-index: 5;
             box-sizing: border-box;
             
             /* New properties for image segments */
-            background-size: var(--bg-size-x) var(--bg-size-y); /* Will be set dynamically */
-            background-repeat: no-repeat;
+            
+           
             
             /* Initial state for burst */
             transform: translate(var(--initial-x, 0), var(--initial-y, 0)) rotate(var(--initial-rotate, 0deg)) scale(var(--initial-scale, 1));
@@ -158,9 +158,40 @@
             transition: transform 0.8s ease-out, opacity 0.8s ease-out; /* Animation to grid */
         }
 
-        .falling-box.in-place {
+           .falling-box {
+            position: absolute;
+            cursor: pointer;
+            z-index: 5;
+            box-sizing: border-box;
+            
+            background-color: rgba(139, 69, 19, 0.8); /* Semi-transparent brown for the box itself */
+            border: 1px solid rgba(90, 45, 12, 0.9);
+            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3), 3px 3px 8px rgba(0, 0, 0, 0.7);
+            
+            display: flex; /* Use flexbox to center the emoji */
+            justify-content: center;
+            align-items: center;
+            font-size: 2em; /* Adjust emoji size here */
+            
+            /* Initial state for burst - these are immediate values, transitions handled by .in-place */
+            transform: translate(var(--initial-x, 0), var(--initial-y, 0)) rotate(var(--initial-rotate, 0deg)) scale(var(--initial-scale, 1));
+            opacity: var(--initial-opacity, 0);
+            /* Removed transition here - it's handled by .in-place for entry, and .popped for exit */
+        }
+        /* Remove or adjust .falling-box:hover if you want a different effect for emojis */
+        .falling-box:hover {
+            transform: translateY(-3px) scale(1.02); /* Slight hover effect */
+            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.5), 5px 5px 12px rgba(0, 0, 0, 0.9);
+        }
+
+               .falling-box.in-place {
             transform: translate(0, 0) rotate(0deg) scale(1);
             opacity: 1;
+            transition: transform 0.8s ease-out, opacity 0.8s ease-out; /* Add transition for entry */
+        }
+
+                .falling-box span {
+            pointer-events: none; /* Allow clicks to pass through the emoji span to the parent div */
         }
 
         .falling-box:hover {
@@ -333,9 +364,12 @@
             const uploadArea = document.querySelector('.upload-area');
             const mainTitle = document.querySelector('h1');
             
+                        // ... (previous code) ...
+
             let boxesPopped = 0;
             let totalBoxes = 0;
             const celebrationColors = ['#ff00ff', '#00ff7f', '#ffcc00', '#00bfff', '#ff5733'];
+            const animalEmojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐒', '🦋', '🐢', '🐍', '🐠', '🐙', '🦀', '🐳', '🐬', '🐧', '🦅', '🦉', '🦆', '🦢', '🕊️', '🐎', '🦓', '🦒', '🐘', '🦏', '🦛', '🐪', '🐆', '🐅', '🦍', '🦧', '🦝', '🦡', '🦦', '🐾'];
 
             const rows = 6;
             const cols = 6;
@@ -380,21 +414,21 @@
                         const box = document.createElement('div');
                         box.classList.add('falling-box');
                         
-                        box.style.backgroundImage = `url(${imageUrl})`;
-                        box.style.setProperty('--bg-size-x', bgSizeX);
-                        box.style.setProperty('--bg-size-y', bgSizeY);
+                        // Add a random emoji to the box
+                        const randomEmoji = animalEmojis[Math.floor(Math.random() * animalEmojis.length)];
+                        box.innerHTML = `<span style="font-size: 2em; line-height: 1; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">${randomEmoji}</span>`; // Centered emoji
 
-                        const bgPosX = -(col * (100 / cols));
-                        const bgPosY = -(row * (100 / rows));
-                        box.style.backgroundPosition = `${bgPosX}% ${bgPosY}%`;
-                        
+                        // Removed background-image, background-position, background-size for emoji approach
+                        // If you still want the image to be visible *through* the emojis, you'd need to adjust
+                        // the falling-box styles to use background-image for the wrapper and make emojis transparent
+                        // For now, emojis will cover the image.
+
                         box.style.left = `${col * boxWidthPercent}%`;
                         box.style.top = `${row * boxHeightPercent}%`;
                         box.style.width = `${boxWidthPercent}%`;
                         box.style.height = `${boxHeightPercent}%`;
 
                         // Set initial scattered properties using CSS variables
-                        // The 'burst' effect starts here
                         const burstSpread = 150; // How far boxes are initially scattered (in px)
                         const initialTranslateX = (Math.random() - 0.5) * burstSpread;
                         const initialTranslateY = (Math.random() - 0.5) * burstSpread;
@@ -423,6 +457,8 @@
                 };
                 tempImg.src = imageUrl; 
             }
+
+          
             
             function resetGame() {
                 gameBoardWrapper.style.display = 'none';
