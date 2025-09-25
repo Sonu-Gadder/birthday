@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Birthday Uncover!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Bangers', cursive, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(to top right, #ff007f, #8a2be2, #00bfff);
+            color: white;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Mobile Friendliness */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .game-container { padding: 15px; border-width: 3px; }
+            h1 { font-size: 1.8em; }
+            .upload-label, #kid-name, #play-again-btn {
+                padding: 10px 15px;
+                font-size: 0.9em;
+                display: block;
+                margin: 8px auto;
+                width: calc(100% - 20px);
+            }
+            #kid-name { margin-left: 0; }
+            .falling-box { font-size: 1.5em; padding: 5px; } /* This font-size will no longer apply to text */
+            #final-message { font-size: 2.5em; }
+            .celebration-image-wrapper { max-width: 300px; }
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 850px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            border-radius: 25px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
+            border: 8px outset #ffcc00;
+            z-index: 10;
+        }
+
+        h1 {
+            font-family: 'Bangers', cursive, sans-serif;
+            font-size: 3em;
+            text-shadow: 4px 4px 6px #ff00ff;
+            margin-bottom: 20px;
+        }
+        
+        #play-again-btn {
+            display: none;
+            margin: 10px auto 30px auto;
+            padding: 18px 35px;
+            background-color: #00ff7f;
+            color: #333;
+            border: 3px solid white;
+            border-radius: 15px;
+            font-size: 1.4em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        #play-again-btn:hover {
+            transform: scale(1.08) rotate(2deg);
+            background-color: #00e676;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .upload-area {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #image-upload { display: none; }
+
+        .upload-label, #kid-name {
+            padding: 15px 25px;
+            background-color: #ff00ff;
+            color: white;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            border: 2px dashed #00ff7f;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            margin: 5px;
+        }
+
+        .upload-label:hover, #kid-name:hover {
+            transform: scale(1.05);
+            background-color: #e600e6;
+        }
+
+        #kid-name {
+            color: #333;
+            background-color: #ffffff;
+            border: 2px solid #00ff7f;
+            width: 200px;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        .game-board-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9);
+            background-size: cover; /* Ensures the main image covers the board */
+            background-position: center;
+            background-repeat: no-repeat;
+            border: 5px solid #ffcc00;
+            display: none; /* Hide until image is uploaded */
+        }
+
+        #dynamic-box-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .falling-box {
+            position: absolute;
+            cursor: pointer;
+            background-color: #8B4513; /* Fallback color if image fails */
+            border: 1px solid #5A2D0C;
+            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3), 3px 3px 8px rgba(0, 0, 0, 0.7);
+            z-index: 5;
+            box-sizing: border-box;
+            
+            /* New properties for image segments */
+            background-size: var(--bg-size-x) var(--bg-size-y); /* Will be set dynamically */
+            background-repeat: no-repeat;
+            
+            /* Initial state for burst */
+            transform: translate(var(--initial-x, 0), var(--initial-y, 0)) rotate(var(--initial-rotate, 0deg)) scale(var(--initial-scale, 1));
+            opacity: var(--initial-opacity, 0);
+            transition: transform 0.8s ease-out, opacity 0.8s ease-out; /* Animation to grid */
+        }
+
+        .falling-box.in-place {
+            transform: translate(0, 0) rotate(0deg) scale(1);
+            opacity: 1;
+        }
+
+        .falling-box:hover {
+            transform: translateY(-3px) scale(1.02); /* Slight hover effect */
+            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.5), 5px 5px 12px rgba(0, 0, 0, 0.9);
+        }
+        
+        .popped {
+            animation: fall-away 0.7s ease-in forwards;
+            pointer-events: none;
+        }
+
+        @keyframes fall-away {
+            0% { transform: translate(0, 0) rotateZ(0deg) scale(1); opacity: 1; }
+            20% { transform: translate(var(--fall-x-start, 0), var(--fall-y-start, 0)) rotateZ(var(--rotate-start, 0deg)) scale(1); opacity: 0.9; }
+            100% { transform: translate(var(--fall-x-end), var(--fall-y-end)) rotateZ(var(--rotate-end)) scale(0.1); opacity: 0; }
+        }
+
+        .overlay-message {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 1s ease-in-out, visibility 1s;
+            z-index: 20;
+        }
+
+        .overlay-message.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #final-message {
+            font-family: 'Bangers', cursive, sans-serif;
+            font-size: 4em;
+            margin: 0;
+            text-shadow: 5px 5px 8px #ff00ff;
+            animation: party-bounce 1s infinite alternate;
+        }
+
+        @keyframes party-bounce {
+            from { transform: translateY(0) scale(1); text-shadow: 5px 5px 8px #ff00ff; }
+            to { transform: translateY(-20px) scale(1.05); text-shadow: 7px 7px 10px #00ff7f; }
+        }
+
+        .celebration-image-wrapper {
+            width: 80%;
+            max-width: 450px;
+            margin-top: 25px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 5px solid #00ff7f;
+            box-shadow: 0 0 25px #ff00ff, 0 0 15px #00ff7f;
+        }
+
+        #final-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Celebration Effects */
+        .effect-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 30;
+        }
+        .confetti-piece, .balloon-piece, .firecracker-spark {
+            position: absolute;
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+        .confetti-piece {
+            width: 10px; height: 10px;
+            background-color: currentColor;
+            border-radius: 2px;
+            animation: fall-confetti var(--duration) linear forwards;
+        }
+        @keyframes fall-confetti {
+            0% { transform: translate(var(--x), var(--y)) rotate(0deg) scale(1); opacity: 1; }
+            100% { transform: translate(var(--x-end), var(--y-end)) rotate(720deg) scale(0.5); opacity: 0; }
+        }
+        .balloon-piece {
+            width: 40px; height: 60px;
+            background-color: currentColor;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            box-shadow: inset -5px -5px 0px rgba(0,0,0,0.2);
+            animation: float-balloon var(--duration) ease-out forwards;
+        }
+        .balloon-piece::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 20px;
+            background-color: currentColor;
+            opacity: 0.7;
+            animation: swing-string var(--duration) ease-in-out infinite alternate;
+        }
+        @keyframes float-balloon {
+            0% { transform: translate(var(--x), var(--y)) scale(0.5); opacity: 0.8; }
+            100% { transform: translate(var(--x-end), var(--y-end)) scale(1); opacity: 0; }
+        }
+        @keyframes swing-string {
+            0% { transform: translateX(-50%) rotate(-5deg); }
+            100% { transform: translateX(-50%) rotate(5deg); }
+        }
+        .firecracker-spark {
+            width: 5px; height: 5px;
+            background-color: currentColor;
+            border-radius: 50%;
+            animation: spark-burst var(--duration) ease-out forwards;
+        }
+        @keyframes spark-burst {
+            0% { transform: translate(var(--x), var(--y)) scale(1); opacity: 1; }
+            100% { transform: translate(var(--x-end), var(--y-end)) rotateZ(var(--rotate-end)) scale(0.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <button id="play-again-btn">Play Again!</button>
+        <h1>Uncover the Birthday Surprise!</h1>
+        <div class="upload-area">
+            <input type="file" id="image-upload" accept="image/*">
+            <label for="image-upload" class="upload-label">
+                Upload Birthday Kid's Photo
+            </label>
+            <input type="text" id="kid-name" placeholder="Enter kid's name">
+        </div>
+        <div class="game-board-wrapper">
+            <div id="dynamic-box-container"></div>
+            <div class="overlay-message" id="overlay-message">
+                <h2 id="final-message"></h2>
+                <div class="celebration-image-wrapper">
+                    <img id="final-image" src="" alt="Birthday Kid's Photo">
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Pop sound effect -->
+    <audio id="pop-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-fast-pop-censor-2195.mp3" preload="auto"></audio> 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageUpload = document.getElementById('image-upload');
+            const kidNameInput = document.getElementById('kid-name');
+            const dynamicBoxContainer = document.getElementById('dynamic-box-container');
+            const gameBoardWrapper = document.querySelector('.game-board-wrapper');
+            const popSound = document.getElementById('pop-sound');
+            const overlayMessage = document.getElementById('overlay-message');
+            const finalMessage = document.getElementById('final-message');
+            const finalImage = document.getElementById('final-image');
+            const playAgainBtn = document.getElementById('play-again-btn');
+            const uploadArea = document.querySelector('.upload-area');
+            const mainTitle = document.querySelector('h1');
+            
+            let boxesPopped = 0;
+            let totalBoxes = 0;
+            const celebrationColors = ['#ff00ff', '#00ff7f', '#ffcc00', '#00bfff', '#ff5733'];
+
+            const rows = 6;
+            const cols = 6;
+
+            function createFallingBoxes() {
+                dynamicBoxContainer.innerHTML = '';
+                boxesPopped = 0;
+                totalBoxes = rows * cols;
+                
+                const imageUrl = gameBoardWrapper.style.backgroundImage.slice(4, -1).replace(/"/g, "");
+
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    const originalImageWidth = tempImg.naturalWidth;
+                    const originalImageHeight = tempImg.naturalHeight;
+
+                    const wrapperDimension = Math.min(gameBoardWrapper.offsetWidth, gameBoardWrapper.offsetHeight);
+                    
+                    const aspectRatioImage = originalImageWidth / originalImageHeight;
+                    const aspectRatioWrapper = wrapperDimension / wrapperDimension; 
+
+                    let bgSizeX, bgSizeY;
+
+                    if (aspectRatioImage > aspectRatioWrapper) { 
+                        bgSizeY = '100%';
+                        bgSizeX = `${(originalImageWidth / originalImageHeight) * 100}%`;
+                    } else { 
+                        bgSizeX = '100%';
+                        bgSizeY = `${(originalImageHeight / originalImageWidth) * 100}%`;
+                    }
+
+                    // Store box elements to animate them after creation
+                    const boxes = [];
+
+                    for (let i = 0; i < totalBoxes; i++) {
+                        const row = Math.floor(i / cols);
+                        const col = i % cols;
+
+                        const boxWidthPercent = 100 / cols;
+                        const boxHeightPercent = 100 / rows;
+
+                        const box = document.createElement('div');
+                        box.classList.add('falling-box');
+                        
+                        box.style.backgroundImage = `url(${imageUrl})`;
+                        box.style.setProperty('--bg-size-x', bgSizeX);
+                        box.style.setProperty('--bg-size-y', bgSizeY);
+
+                        const bgPosX = -(col * (100 / cols));
+                        const bgPosY = -(row * (100 / rows));
+                        box.style.backgroundPosition = `${bgPosX}% ${bgPosY}%`;
+                        
+                        box.style.left = `${col * boxWidthPercent}%`;
+                        box.style.top = `${row * boxHeightPercent}%`;
+                        box.style.width = `${boxWidthPercent}%`;
+                        box.style.height = `${boxHeightPercent}%`;
+
+                        // Set initial scattered properties using CSS variables
+                        // The 'burst' effect starts here
+                        const burstSpread = 150; // How far boxes are initially scattered (in px)
+                        const initialTranslateX = (Math.random() - 0.5) * burstSpread;
+                        const initialTranslateY = (Math.random() - 0.5) * burstSpread;
+                        const initialRotate = (Math.random() - 0.5) * 360; // Full rotation
+                        const initialScale = 0.5 + (Math.random() * 0.5); // Smaller to full size
+                        const initialOpacity = 0.3 + (Math.random() * 0.5); // Start semi-transparent
+
+                        box.style.setProperty('--initial-x', `${initialTranslateX}px`);
+                        box.style.setProperty('--initial-y', `${initialTranslateY}px`);
+                        box.style.setProperty('--initial-rotate', `${initialRotate}deg`);
+                        box.style.setProperty('--initial-scale', `${initialScale}`);
+                        box.style.setProperty('--initial-opacity', `${initialOpacity}`);
+                        
+                        dynamicBoxContainer.appendChild(box);
+                        boxes.push(box);
+                    }
+
+                    // Animate boxes into place after a short delay
+                    setTimeout(() => {
+                        boxes.forEach((box, index) => {
+                            setTimeout(() => {
+                                box.classList.add('in-place'); // Trigger transition to final position
+                            }, index * 30); // Staggered entry animation
+                        });
+                    }, 100); // Small delay before animating into place
+                };
+                tempImg.src = imageUrl; 
+            }
+            
+            function resetGame() {
+                gameBoardWrapper.style.display = 'none';
+                overlayMessage.classList.remove('visible');
+                uploadArea.style.display = 'flex';
+                mainTitle.textContent = "Uncover the Birthday Surprise!";
+                playAgainBtn.style.display = 'none';
+                document.querySelectorAll('.effect-container').forEach(el => el.remove());
+                kidNameInput.value = '';
+                imageUpload.value = '';
+                gameBoardWrapper.style.backgroundImage = 'none'; 
+                finalImage.src = ''; 
+                dynamicBoxContainer.innerHTML = ''; // Clear boxes for a clean slate
+            }
+
+            dynamicBoxContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('falling-box') && !e.target.classList.contains('popped')) {
+                    const box = e.target;
+                    
+                    // The values for fall-away animation
+                    const fallDistance = window.innerHeight * 1.5; 
+                    const endX = (Math.random() - 0.5) * window.innerWidth * 0.8; // Wider spread
+                    const endY = fallDistance + Math.random() * 200;
+                    const rotateEnd = (Math.random() - 0.5) * 1080; 
+                    
+                    box.style.setProperty('--fall-x-end', `${endX}px`);
+                    box.style.setProperty('--fall-y-end', `${endY}px`);
+                    box.style.setProperty('--rotate-end', `${rotateEnd}deg`);
+                    
+                    box.classList.add('popped');
+                    popSound.currentTime = 0;
+                    popSound.play().catch(e => console.log("Audio play failed:", e)); 
+                    boxesPopped++;
+                    checkGameStatus();
+                }
+            });
+
+            function checkGameStatus() {
+                if (boxesPopped >= totalBoxes) {
+                    const kidName = kidNameInput.value.trim() || 'Birthday Kid';
+                    finalMessage.textContent = `Happy Birthday, ${kidName}!`;
+                    overlayMessage.classList.add('visible');
+                    playAgainBtn.style.display = 'block';
+                    createPartyEffects();
+                }
+            }
+            
+            function createPartyEffects() {
+                const effectContainer = document.createElement('div');
+                effectContainer.classList.add('effect-container');
+                document.body.appendChild(effectContainer);
+
+                for (let i = 0; i < 150; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti-piece');
+                    confetti.style.color = celebrationColors[Math.floor(Math.random() * celebrationColors.length)];
+                    confetti.style.setProperty('--x', `${Math.random() * window.innerWidth}px`);
+                    confetti.style.setProperty('--y', `${-Math.random() * 200}px`);
+                    confetti.style.setProperty('--x-end', `${Math.random() * window.innerWidth}px`);
+                    confetti.style.setProperty('--y-end', `${window.innerHeight + Math.random() * 200}px`);
+                    confetti.style.setProperty('--duration', `${Math.random() * 2 + 3}s`);
+                    effectContainer.appendChild(confetti);
+                }
+
+                for (let i = 0; i < 20; i++) {
+                    const balloon = document.createElement('div');
+                    balloon.classList.add('balloon-piece');
+                    balloon.style.color = celebrationColors[Math.floor(Math.random() * celebrationColors.length)];
+                    balloon.style.left = `${Math.random() * 90}%`;
+                    balloon.style.bottom = `${-Math.random() * 100}px`;
+                    balloon.style.setProperty('--x', `${balloon.offsetLeft}px`);
+                    balloon.style.setProperty('--y', `${balloon.offsetTop}px`);
+                    balloon.style.setProperty('--x-end', `${balloon.offsetLeft + (Math.random() - 0.5) * 200}px`);
+                    balloon.style.setProperty('--y-end', `${-window.innerHeight - Math.random() * 300}px`);
+                    balloon.style.setProperty('--duration', `${Math.random() * 4 + 6}s`);
+                    effectContainer.appendChild(balloon);
+                }
+
+                for (let i = 0; i < 8; i++) { 
+                    const startX = Math.random() * window.innerWidth;
+                    const startY = window.innerHeight * 0.8 + Math.random() * window.innerHeight * 0.2; 
+                    for (let j = 0; j < 50; j++) { 
+                        const spark = document.createElement('div');
+                        spark.classList.add('firecracker-spark');
+                        spark.style.color = celebrationColors[Math.floor(Math.random() * celebrationColors.length)];
+                        spark.style.setProperty('--x', `${startX}px`);
+                        spark.style.setProperty('--y', `${startY}px`);
+                        spark.style.setProperty('--x-end', `${startX + (Math.random() - 0.5) * 400}px`); 
+                        spark.style.setProperty('--y-end', `${startY - Math.random() * 300 - 100}px`); 
+                        spark.style.setProperty('--duration', `${Math.random() * 1.5 + 1}s`);
+                        effectContainer.appendChild(spark);
+                    }
+                }
+            }
+
+            playAgainBtn.addEventListener('click', resetGame);
+
+            imageUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imageUrl = e.target.result;
+                        gameBoardWrapper.style.backgroundImage = `url(${imageUrl})`;
+                        finalImage.src = imageUrl;
+                        uploadArea.style.display = 'none';
+                        gameBoardWrapper.style.display = 'block';
+                        mainTitle.textContent = "Piece the Puzzle Together!"; // Updated title
+                        playAgainBtn.style.display = 'none';
+                        
+                        const img = new Image();
+                        img.onload = () => {
+                            createFallingBoxes(); 
+                        };
+                        img.src = imageUrl;
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            resetGame();
+            window.addEventListener('resize', () => {
+                // Only recreate boxes if the game board is currently visible (i.e., an image is loaded)
+                if (gameBoardWrapper.style.display === 'block') {
+                    createFallingBoxes(); 
+                }
+            });
+        });
+    </script>
+</body>
+</html>
